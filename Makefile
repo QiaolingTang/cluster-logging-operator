@@ -33,6 +33,11 @@ REPLICAS?=0
 export E2E_TEST_EXCLUDES?=flowcontrol
 export CLF_TEST_INCLUDES?=
 
+GO_LD_FLAGS := -s -w
+ifeq ($(shell go env GOOS),darwin)
+    GO_LD_FLAGS += -extldflags='-ld_classic'
+endif
+
 .PHONY: force
 
 .PHONY: tools
@@ -299,7 +304,7 @@ test-upgrade: $(JUNITREPORT)
 	RELATED_IMAGE_LOG_FILE_METRIC_EXPORTER=$(IMAGE_LOGFILEMETRICEXPORTER) \
 	IMAGE_LOGGING_EVENTROUTER=$(IMAGE_LOGGING_EVENTROUTER) \
 	exit 0
-	
+
 
 .PHONY: test-e2e
 test-e2e: $(JUNITREPORT)
@@ -417,3 +422,7 @@ olm-upgrade: $(OPERATOR_SDK) olm-bundle-push olm-operator-push
 .PHONY: olm-undeploy
 olm-undeploy: $(OPERATOR_SDK)
 	$(OPERATOR_SDK) cleanup -n $(NAMESPACE) cluster-logging
+
+.PHONY: cluster-logging-tests-ext-build
+cluster-logging-tests-ext-build:
+	export CGO_ENABLED=0 && GO_COMPLIANCE_POLICY="exempt_all" && GO111MODULE="on" && export GOFLAGS="" && export GOWORK=off && { go build  -ldflags="${GO_LD_FLAGS}" -mod=mod -o "bin/" "./cmd/cluster-logging-tests-ext/";sed -i'' -e '/^toolchain go/d' go.mod; rm -f go.mod-e; }
